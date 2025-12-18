@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/exgamer/gosdk-core/pkg/localizer/filefinder"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/localizer/filefinder"
 	"golang.org/x/text/language"
 )
 

@@ -2,11 +2,11 @@ package middleware
 
 import (
 	"context"
+	"github.com/exgamer/gosdk-core/pkg/config"
+	"github.com/exgamer/gosdk-core/pkg/constants"
+	"github.com/exgamer/gosdk-core/pkg/debug"
+	gin2 "github.com/exgamer/gosdk-core/pkg/gin"
 	"github.com/gin-gonic/gin"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/config"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/constants"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/debug"
-	gin2 "gitlab.almanit.kz/jmart/gosdk/pkg/gin"
 )
 
 // RequestMiddleware Middleware заполняющий данные запроса

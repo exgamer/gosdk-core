@@ -9,11 +9,11 @@
 package app
 
 import (
-	app "gitlab.almanit.kz/jmart/gosdk/pkg/app/v2"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/config"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/database"
-	redis2 "gitlab.almanit.kz/jmart/gosdk/pkg/database/redis"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/di"
+	app "github.com/exgamer/gosdk-core/pkg/app/v2"
+	"github.com/exgamer/gosdk-core/pkg/config"
+	"github.com/exgamer/gosdk-core/pkg/database"
+	redis2 "github.com/exgamer/gosdk-core/pkg/database/redis"
+	"github.com/exgamer/gosdk-core/pkg/di"
 	"jmart/banner-service/cmd/app/docs"
 	"jmart/banner-service/internal/factories"
 	"jmart/banner-service/internal/routes"

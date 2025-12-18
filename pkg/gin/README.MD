@@ -82,7 +82,7 @@ func (r *ArticleCreateRequest) customIntBig2Validator() func(fl validator.FieldL
 
 ### Для вызова валидации тела запроса нужно в контроллере сделать следующее
 ```go 
-    import ginHelper "gitlab.almanit.kz/jmart/gosdk/pkg/gin"
+    import ginHelper "github.com/exgamer/gosdk-core/pkg/gin"
 
     c := *gin.Context
     request := requests.ArticleCreateRequest{}
@@ -96,7 +96,7 @@ func (r *ArticleCreateRequest) customIntBig2Validator() func(fl validator.FieldL
 
 ### Для вызова валидации query параметров запроса нужно в контроллере сделать следующее
 ```go 
-    import ginHelper "gitlab.almanit.kz/jmart/gosdk/pkg/gin"
+    import ginHelper "github.com/exgamer/gosdk-core/pkg/gin"
 
     c := *gin.Context
     request := requests.ArticleIndexRequest{}

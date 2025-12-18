@@ -1,10 +1,10 @@
 package exception
 
 import (
+	"github.com/exgamer/gosdk-core/pkg/constants"
+	"github.com/exgamer/gosdk-core/pkg/validation"
 	"github.com/go-errors/errors"
 	"github.com/gookit/validate"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/constants"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/validation"
 	"net/http"
 )
 

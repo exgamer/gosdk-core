@@ -1,8 +1,8 @@
 package middleware
 
 import (
+	"github.com/exgamer/gosdk-core/pkg/http/helpers"
 	"github.com/gin-gonic/gin"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/http/helpers"
 )
 
 // FormattedResponseMiddleware Middleware для обработки ответа

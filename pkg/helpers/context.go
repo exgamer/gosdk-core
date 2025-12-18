@@ -2,8 +2,8 @@ package helpers
 
 import (
 	"context"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/config"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/constants"
+	"github.com/exgamer/gosdk-core/pkg/config"
+	"github.com/exgamer/gosdk-core/pkg/constants"
 )
 
 func GetAppInfoFromContext(ctx context.Context) *config.AppInfo {

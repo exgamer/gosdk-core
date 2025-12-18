@@ -11,7 +11,7 @@
 ### Получение AppInfo в Http Handler
 
 ```go
-"gitlab.almanit.kz/jmart/gosdk/pkg/gin"
+"github.com/exgamer/gosdk-core/pkg/gin"
 
 	appInfo := gin.GetAppInfoCollectorFromGinContext(c)
 ```
@@ -19,7 +19,7 @@
 ### Получение AppInfo в сервисах
 
 ```go
-    "gitlab.almanit.kz/jmart/gosdk/pkg/helpers"
+    "github.com/exgamer/gosdk-core/pkg/helpers"
 
 	appInfo := helpers.GetAppInfoFromContext(ctx)
 ```

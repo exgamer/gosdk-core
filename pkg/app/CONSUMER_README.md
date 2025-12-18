@@ -12,14 +12,14 @@ import (
 	"gitlab.almanit.kz/jmart/go-rest-template/internal/consumers"
 	"gitlab.almanit.kz/jmart/go-rest-template/internal/factories"
 	"gitlab.almanit.kz/jmart/go-rest-template/internal/routes"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/app/v2"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/config"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/di"
+	"github.com/exgamer/gosdk-core/pkg/app/v2"
+	"github.com/exgamer/gosdk-core/pkg/config"
+	"github.com/exgamer/gosdk-core/pkg/di"
 
-	"gitlab.almanit.kz/jmart/gosdk/pkg/console"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/database"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/rabbitmq"
-	structures2 "gitlab.almanit.kz/jmart/gosdk/pkg/rabbitmq/structures"
+	"github.com/exgamer/gosdk-core/pkg/console"
+	"github.com/exgamer/gosdk-core/pkg/database"
+	"github.com/exgamer/gosdk-core/pkg/rabbitmq"
+	structures2 "github.com/exgamer/gosdk-core/pkg/rabbitmq/structures"
 )
 
 func InitApp() *app.App {

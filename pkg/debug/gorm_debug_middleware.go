@@ -1,7 +1,7 @@
 package debug
 
 import (
-	"gitlab.almanit.kz/jmart/gosdk/pkg/helpers"
+	"github.com/exgamer/gosdk-core/pkg/helpers"
 	"gorm.io/gorm"
 	"strings"
 	"time"

@@ -1,9 +1,9 @@
 package metricapp
 
 import (
+	"github.com/exgamer/gosdk-core/pkg/exception"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/exception"
 	"strconv"
 	"sync"
 	"time"

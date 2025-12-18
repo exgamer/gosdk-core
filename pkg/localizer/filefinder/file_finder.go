@@ -1,7 +1,7 @@
 package filefinder
 
 import (
-	enums2 "gitlab.almanit.kz/jmart/gosdk/pkg/localizer/enums"
+	enums2 "github.com/exgamer/gosdk-core/pkg/localizer/enums"
 	"os"
 	"path/filepath"
 )

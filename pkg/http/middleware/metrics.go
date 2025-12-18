@@ -1,8 +1,8 @@
 package middleware
 
 import (
+	"github.com/exgamer/gosdk-core/pkg/metricapp"
 	"github.com/gin-gonic/gin"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/metricapp"
 	"time"
 )
 

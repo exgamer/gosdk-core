@@ -1,8 +1,8 @@
 package logger
 
 import (
-	"gitlab.almanit.kz/jmart/gosdk/pkg/config"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/exception"
+	"github.com/exgamer/gosdk-core/pkg/config"
+	"github.com/exgamer/gosdk-core/pkg/exception"
 	"log"
 	"os"
 	"strconv"

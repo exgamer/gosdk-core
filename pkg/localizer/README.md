@@ -8,7 +8,7 @@ _, err := localizer.InitLocalizer()
 В дальнейшем обращение к локалайзеру производить через импорт пакета в нужном месте
 
 ```go
-import "gitlab.almanit.kz/jmart/gosdk/pkg/localizer"
+import "github.com/exgamer/gosdk-core/pkg/localizer"
 
 m := localizer.Locale.GetMessageOne("key", "ru")
 ```

@@ -1,12 +1,12 @@
 package middleware
 
 import (
+	"github.com/exgamer/gosdk-core/pkg/exception"
+	gin2 "github.com/exgamer/gosdk-core/pkg/gin"
+	"github.com/exgamer/gosdk-core/pkg/logger"
 	"github.com/getsentry/sentry-go"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/exception"
-	gin2 "gitlab.almanit.kz/jmart/gosdk/pkg/gin"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/logger"
 	"net/http"
 	"time"
 )

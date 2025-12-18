@@ -3,8 +3,8 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	structHelper "github.com/exgamer/gosdk-core/pkg/structures"
 	"github.com/spf13/viper"
-	structHelper "gitlab.almanit.kz/jmart/gosdk/pkg/structures"
 	"os"
 	"strings"
 )

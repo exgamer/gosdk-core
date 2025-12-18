@@ -2,8 +2,8 @@ package debug
 
 import (
 	"context"
+	"github.com/exgamer/gosdk-core/pkg/helpers"
 	"github.com/gin-gonic/gin"
-	"gitlab.almanit.kz/jmart/gosdk/pkg/helpers"
 	"time"
 )
 
