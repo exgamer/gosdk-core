@@ -142,6 +142,12 @@ func (app *App) initApp() error {
 
 	// Инициализация конфига апп
 	{
+		envErr := config.ReadEnv()
+
+		if envErr != nil {
+			return envErr
+		}
+
 		baseConfig := &config.BaseConfig{}
 		err := config.InitConfig(baseConfig)
 
