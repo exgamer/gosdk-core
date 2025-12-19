@@ -2,16 +2,10 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/exgamer/gosdk-core/pkg/config"
 	"github.com/exgamer/gosdk-core/pkg/di"
-	ginHelper "github.com/exgamer/gosdk-core/pkg/gin"
-	"github.com/exgamer/gosdk-core/pkg/metricapp"
-	"github.com/exgamer/gosdk-core/pkg/tracer"
-	"github.com/getsentry/sentry-go"
-	"github.com/gin-gonic/gin"
 	"log"
 	"os"
 	"os/signal"
@@ -20,98 +14,144 @@ import (
 	"time"
 )
 
-var once sync.Once
-
 func NewApp() *App {
 	return &App{}
 }
 
 type App struct {
-	TraceClient           *tracer.Tracer
-	BaseConfig            *config.BaseConfig
-	Router                *gin.Engine
-	Location              *time.Location
-	Metrics               *metricapp.Metrics
-	Container             *di.Container
-	PrepareConfigsFunc    func(app *App) error
-	PrepareComponentsFunc func(app *App) error
-	PrepareHttpFunc       func(app *App) error
-	PrepareConsumerFunc   func(app *App) error
-	stopHooks             []func(ctx context.Context) error
-	shutdownTimeout       time.Duration
+	BaseConfig      *config.BaseConfig
+	Location        *time.Location
+	Container       *di.Container
+	modules         map[string]ModuleInterface
+	startedModules  map[string]struct{}
+	stopHooks       []func(ctx context.Context) error
+	shutdownTimeout time.Duration
+	once            sync.Once
+	shutdownOnce    sync.Once
+	mu              sync.Mutex
+	initErr         error
 }
 
-func (app *App) InitBaseConfig() (*config.BaseConfig, error) {
-	baseConfig := &config.BaseConfig{HandlerTimeout: 30}
-	err := config.InitConfig(baseConfig)
-
-	if err != nil {
-		return nil, err
-	}
-
-	spew.Dump(baseConfig)
-
-	return baseConfig, nil
-}
-
-func (app *App) initConfig() error {
-	envErr := config.ReadEnv()
-
-	if envErr != nil {
-		fmt.Println(envErr.Error())
-	}
-
-	baseConfig, err := app.InitBaseConfig()
-
-	if err != nil {
+// RegisterModule регистрирует модуль приложения
+func (app *App) RegisterModule(m ModuleInterface) error {
+	if err := app.ensureInit(); err != nil {
 		return err
 	}
 
-	app.BaseConfig = baseConfig
-
-	if app.PrepareConfigsFunc != nil {
-		if err := app.PrepareConfigsFunc(app); err != nil {
-			return err
-		}
+	name := m.Name()
+	if name == "" {
+		panic("module name is empty")
 	}
+
+	app.mu.Lock()
+	defer app.mu.Unlock()
+
+	if _, exists := app.modules[name]; exists {
+		panic("module already registered: " + name)
+	}
+
+	app.modules[name] = m
 
 	return nil
 }
 
-// InitTraceClient - инициализация трейсера
-func (app *App) initTraceClient() error {
-	traceClient, err := tracer.InitTraceClient()
-
-	if err != nil {
-		fmt.Println("Соединение с трассировкой - ошибка : ", err.Error())
+// RunModule запускает модуль
+func (app *App) RunModule(name string) error {
+	if err := app.ensureInit(); err != nil {
+		return err
 	}
 
-	app.TraceClient = traceClient
+	// 1) Быстрые проверки + резервируем старт под локом
+	app.mu.Lock()
+
+	if len(app.modules) == 0 {
+		app.mu.Unlock()
+		return fmt.Errorf("no modules registered")
+	}
+
+	module, ok := app.modules[name]
+	if !ok || module == nil {
+		app.mu.Unlock()
+		return fmt.Errorf("module not registered: %s", name)
+	}
+
+	if _, exists := app.startedModules[name]; exists {
+		app.mu.Unlock()
+		return fmt.Errorf("module already started: %s", name)
+	}
+
+	// резервируем, чтобы параллельный RunModule не стартанул второй раз
+	app.startedModules[name] = struct{}{}
+	app.mu.Unlock()
+
+	rollbackStarted := func() {
+		app.mu.Lock()
+		delete(app.startedModules, name)
+		app.mu.Unlock()
+	}
+
+	// 2) Тяжёлые операции — без лока
+	if err := module.Register(app); err != nil {
+		rollbackStarted()
+		return fmt.Errorf("register %s: %w", name, err)
+	}
+
+	if err := module.Start(context.Background()); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), app.shutdownTimeout)
+		defer cancel()
+		_ = module.Stop(ctx)
+
+		rollbackStarted()
+		return fmt.Errorf("start %s: %w", name, err)
+	}
+
+	// 3) Хук добавляем потокобезопасно
+	app.AddStopHook(func(ctx context.Context) error {
+		return module.Stop(ctx)
+	})
 
 	return nil
 }
 
-// initMetrics инициализация http метрик
-func (app *App) initHttpMetrics() {
-	app.Metrics = metricapp.InitMetrics(app.BaseConfig.Name)
+// ensureInit гарантирует initApp 1 раз и возвращает ошибку инициализации.
+func (app *App) ensureInit() error {
+	app.once.Do(func() {
+		app.initErr = app.initApp()
+	})
+
+	return app.initErr
 }
 
 // initApp инициализация приложения
-func (app *App) initApp() {
+func (app *App) initApp() error {
 	app.stopHooks = make([]func(ctx context.Context) error, 0)
 	app.shutdownTimeout = 10 * time.Second
 
+	// Инициализация контейнера
 	if app.Container == nil {
 		app.Container = di.NewContainer()
 	}
 
+	if app.modules == nil {
+		app.modules = make(map[string]ModuleInterface)
+	}
+
+	if app.startedModules == nil {
+		app.startedModules = make(map[string]struct{})
+	}
+
 	// Инициализация конфига апп
 	{
-		err := app.initConfig()
+		baseConfig := &config.BaseConfig{}
+		err := config.InitConfig(baseConfig)
 
 		if err != nil {
-			log.Fatalf(err.Error())
+			return err
 		}
+
+		spew.Dump(baseConfig)
+
+		app.BaseConfig = baseConfig
 	}
 
 	// Инициализиация тайм зоны
@@ -120,119 +160,52 @@ func (app *App) initApp() {
 			location, lErr := time.LoadLocation(app.BaseConfig.TimeZone)
 
 			if lErr != nil {
-				log.Fatalf(lErr.Error())
+				return lErr
 			}
 
 			app.Location = location
 		}
 	}
 
-	// Инициализация трассировки
-	{
-		tErr := app.initTraceClient()
-
-		if tErr != nil {
-			log.Fatalf(tErr.Error())
-		}
-	}
-
-	// Инициализация сентри
-	{
-		if err := sentry.Init(sentry.ClientOptions{
-			AttachStacktrace: true,
-			TracesSampleRate: 1.0,
-			Dsn:              app.BaseConfig.SentryDsn,
-		}); err != nil {
-			fmt.Printf("Sentry initialization failed: %v\n", err)
-		}
-	}
-
-	if app.PrepareComponentsFunc == nil {
-		log.Fatalf("PrepareComponents not defined")
-	}
-
-	if err := app.PrepareComponentsFunc(app); err != nil {
-		log.Fatalf("PrepareComponents error: %v", err)
-	}
+	return nil
 }
 
 // AddStopHook Добавить функцию, которая будет вызвана на shutdown
 func (app *App) AddStopHook(hook func(ctx context.Context) error) {
+	app.mu.Lock()
 	app.stopHooks = append(app.stopHooks, hook)
+	app.mu.Unlock()
 }
 
-// waitForShutdown Метод для красивой остановки приложения
-func (app *App) waitForShutdown() {
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+// WaitForShutdown graceful
+func (app *App) WaitForShutdown() {
+	app.shutdownOnce.Do(func() {
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(stop)
 
-	<-stop // Ожидание сигнала
+		<-stop
+		log.Println("Shutting down application...")
 
-	log.Println("Shutting down application...")
+		go func() {
+			<-stop
+			log.Println("Forced shutdown.")
+			os.Exit(1)
+		}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), app.shutdownTimeout)
-	defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), app.shutdownTimeout)
+		defer cancel()
 
-	for _, hook := range app.stopHooks {
-		if err := hook(ctx); err != nil {
-			log.Printf("Shutdown hook error: %v", err)
+		app.mu.Lock()
+		hooks := append([]func(context.Context) error(nil), app.stopHooks...)
+		app.mu.Unlock()
+
+		for i := len(hooks) - 1; i >= 0; i-- {
+			if err := hooks[i](ctx); err != nil {
+				log.Printf("Shutdown hook error: %v", err)
+			}
 		}
-	}
 
-	log.Println("Application stopped gracefully.")
-}
-
-// RunHttp Запуск веб сервера
-func (app *App) RunHttp() error {
-	once.Do(func() {
-		app.initApp()
+		log.Println("Application stopped gracefully.")
 	})
-
-	// Инициализаця метрик
-	{
-		app.initHttpMetrics()
-	}
-
-	//инициализация ginHelpers
-	app.Router = ginHelper.InitRouter(app.BaseConfig)
-
-	if app.PrepareHttpFunc == nil {
-		return errors.New("apps PrepareHttpFunc not defined")
-	}
-
-	if err := app.PrepareHttpFunc(app); err != nil {
-		return err
-	}
-
-	//запускаем сервер
-	gErr := app.Router.Run(app.BaseConfig.ServerAddress)
-
-	if gErr != nil {
-		return gErr
-	}
-
-	return nil
-}
-
-// RunConsumer запуск консьюмера
-func (app *App) RunConsumer() error {
-	once.Do(func() {
-		app.initApp()
-	})
-
-	if app.PrepareConsumerFunc == nil {
-		return errors.New("apps PrepareConsumerFunc not defined")
-	}
-
-	if err := app.PrepareConsumerFunc(app); err != nil {
-		return err
-	}
-
-	if app.AmqpClient != nil {
-		if err := app.AmqpClient.Run(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
