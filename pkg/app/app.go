@@ -36,6 +36,10 @@ type App struct {
 	errCh  chan error
 }
 
+func (app *App) GetContext() context.Context {
+	return app.ctx
+}
+
 // RegisterModule регистрирует модуль приложения
 func (app *App) RegisterModule(m ModuleInterface) error {
 	if err := app.ensureInit(); err != nil {
