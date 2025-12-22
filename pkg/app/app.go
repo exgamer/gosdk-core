@@ -30,6 +30,10 @@ type App struct {
 	shutdownOnce    sync.Once
 	mu              sync.Mutex
 	initErr         error
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	errCh  chan error
 }
 
 // RegisterModule регистрирует модуль приложения
@@ -96,7 +100,7 @@ func (app *App) RunModule(name string) error {
 		return fmt.Errorf("register %s: %w", name, err)
 	}
 
-	if err := module.Start(context.Background()); err != nil {
+	if err := module.Start(app); err != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), app.shutdownTimeout)
 		defer cancel()
 		_ = module.Stop(ctx)
@@ -126,6 +130,14 @@ func (app *App) ensureInit() error {
 func (app *App) initApp() error {
 	app.stopHooks = make([]func(ctx context.Context) error, 0)
 	app.shutdownTimeout = 10 * time.Second
+
+	if app.errCh == nil {
+		app.errCh = make(chan error, 1) // буфер 1, чтобы не блокировать
+	}
+
+	if app.ctx == nil || app.cancel == nil {
+		app.ctx, app.cancel = context.WithCancel(context.Background())
+	}
 
 	// Инициализация контейнера
 	if app.Container == nil {
@@ -190,9 +202,16 @@ func (app *App) WaitForShutdown() {
 		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(stop)
 
-		<-stop
-		log.Println("Shutting down application...")
+		select {
+		case <-stop:
+			log.Println("Shutting down application (signal)...")
+		case err := <-app.errCh:
+			log.Printf("Shutting down application (fatal error): %v", err)
+		case <-app.ctx.Done():
+			log.Println("Shutting down application (context canceled)...")
+		}
 
+		// второй сигнал — форс
 		go func() {
 			<-stop
 			log.Println("Forced shutdown.")
@@ -212,6 +231,24 @@ func (app *App) WaitForShutdown() {
 			}
 		}
 
+		if app.cancel != nil {
+			app.cancel()
+		}
+
 		log.Println("Application stopped gracefully.")
 	})
+}
+
+func (app *App) Fail(err error) {
+	if err == nil {
+		return
+	}
+	// положим ошибку один раз
+	select {
+	case app.errCh <- err:
+	default:
+	}
+	if app.cancel != nil {
+		app.cancel()
+	}
 }
