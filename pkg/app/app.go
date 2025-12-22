@@ -170,7 +170,7 @@ func (app *App) initApp() error {
 			return err
 		}
 
-		spew.Dump(baseConfig)
+		spew.Dump(baseConfig) //TODO удалить
 
 		app.BaseConfig = baseConfig
 	}
