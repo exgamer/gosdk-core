@@ -22,7 +22,7 @@
 ## Интерфейс модуля
 
 ```go
-type ModuleInterface interface {
+type KernelInterface interface {
     Name() string
     Register(app *App) error
     Start(app *App) error
@@ -35,8 +35,8 @@ type ModuleInterface interface {
 ## Жизненный цикл приложения
 
 1. Создание `App`
-2. Регистрация модулей (`RegisterModule`)
-3. Запуск модулей (`RunModule`)
+2. Регистрация модулей (`RegisterKernel`)
+3. Запуск модулей (`RunKernel`)
 4. Ожидание сигнала завершения (`WaitForShutdown`)
 5. Остановка модулей в обратном порядке
 
@@ -51,19 +51,19 @@ func main() {
         log.Fatal(err)
     }
 
-    if err := appInstance.RegisterModule(&modules.CommonModule{}); err != nil {
+    if err := appInstance.RegisterKernel(&modules.CommonKernel{}); err != nil {
         log.Fatal(err)
     }
 
-    if err := appInstance.RegisterModule(&modules.HttpModule{}); err != nil {
+    if err := appInstance.RegisterKernel(&modules.HttpKernel{}); err != nil {
         log.Fatal(err)
     }
 
-    if err := appInstance.RunModule("common"); err != nil {
+    if err := appInstance.RunKernel("common"); err != nil {
         log.Fatal(err)
     }
 
-    if err := appInstance.RunModule("http"); err != nil {
+    if err := appInstance.RunKernel("http"); err != nil {
         log.Fatal(err)
     }
 
@@ -75,7 +75,7 @@ func main() {
 
 ## RegisterModule
 
-- Вызывает `module.Register(app)`
+- Вызывает `kernel.Register(app)`
 - Гарантирует, что модуль регистрируется только один раз
 - Потокобезопасен
 
@@ -83,7 +83,7 @@ func main() {
 
 ## RunModule
 
-- Вызывает `module.Start(app)`
+- Вызывает `kernel.Start(app)`
 - Регистрирует `StopHook`
 - Не блокирует поток
 

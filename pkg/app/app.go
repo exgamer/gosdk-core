@@ -22,8 +22,8 @@ type App struct {
 	BaseConfig      *config.BaseConfig
 	Location        *time.Location
 	Container       *di.Container
-	modules         map[string]ModuleInterface
-	startedModules  map[string]struct{}
+	kernels         map[string]KernelInterface
+	startedKernels  map[string]struct{}
 	stopHooks       []func(ctx context.Context) error
 	shutdownTimeout time.Duration
 	once            sync.Once
@@ -40,32 +40,32 @@ func (app *App) GetContext() context.Context {
 	return app.ctx
 }
 
-// RegisterModule регистрирует модуль приложения
-func (app *App) RegisterModule(m ModuleInterface) error {
+// RegisterKernel регистрирует модуль приложения
+func (app *App) RegisterKernel(m KernelInterface) error {
 	if err := app.ensureInit(); err != nil {
 		return err
 	}
 
 	name := m.Name()
 	if name == "" {
-		panic("module name is empty")
+		panic("kernel name is empty")
 	}
 
 	// 1) быстрые проверки под локом
 	app.mu.Lock()
-	if _, exists := app.modules[name]; exists {
+	if _, exists := app.kernels[name]; exists {
 		app.mu.Unlock()
-		panic("module already registered: " + name)
+		panic("kernel already registered: " + name)
 	}
 	// резервируем слот, чтобы параллельно не зарегистрировали второй раз
-	app.modules[name] = m
+	app.kernels[name] = m
 	app.mu.Unlock()
 
 	// 2) тяжёлая часть без лока
 	if err := m.Register(app); err != nil {
 		// откат
 		app.mu.Lock()
-		delete(app.modules, name)
+		delete(app.kernels, name)
 		app.mu.Unlock()
 		return fmt.Errorf("register %s: %w", name, err)
 	}
@@ -73,8 +73,8 @@ func (app *App) RegisterModule(m ModuleInterface) error {
 	return nil
 }
 
-// RunModule запускает модуль
-func (app *App) RunModule(name string) error {
+// RunKernel запускает модуль
+func (app *App) RunKernel(name string) error {
 	if err := app.ensureInit(); err != nil {
 		return err
 	}
@@ -82,31 +82,31 @@ func (app *App) RunModule(name string) error {
 	// 1) Быстрые проверки + резервируем старт под локом
 	app.mu.Lock()
 
-	module, ok := app.modules[name]
-	if !ok || module == nil {
+	kernel, ok := app.kernels[name]
+	if !ok || kernel == nil {
 		app.mu.Unlock()
 		return fmt.Errorf("module not registered: %s", name)
 	}
 
-	if _, exists := app.startedModules[name]; exists {
+	if _, exists := app.startedKernels[name]; exists {
 		app.mu.Unlock()
 		return fmt.Errorf("module already started: %s", name)
 	}
 
 	// резервируем, чтобы параллельный RunModule не стартанул второй раз
-	app.startedModules[name] = struct{}{}
+	app.startedKernels[name] = struct{}{}
 	app.mu.Unlock()
 
 	rollbackStarted := func() {
 		app.mu.Lock()
-		delete(app.startedModules, name)
+		delete(app.startedKernels, name)
 		app.mu.Unlock()
 	}
 
-	if err := module.Start(app); err != nil {
+	if err := kernel.Start(app); err != nil {
 		ctx, cancel := context.WithTimeout(app.ctx, app.shutdownTimeout)
 		defer cancel()
-		_ = module.Stop(ctx)
+		_ = kernel.Stop(ctx)
 
 		rollbackStarted()
 		return fmt.Errorf("start %s: %w", name, err)
@@ -114,7 +114,7 @@ func (app *App) RunModule(name string) error {
 
 	// 3) Хук добавляем потокобезопасно
 	app.AddStopHook(func(ctx context.Context) error {
-		return module.Stop(ctx)
+		return kernel.Stop(ctx)
 	})
 
 	return nil
@@ -147,12 +147,12 @@ func (app *App) initApp() error {
 		app.Container = di.NewContainer()
 	}
 
-	if app.modules == nil {
-		app.modules = make(map[string]ModuleInterface)
+	if app.kernels == nil {
+		app.kernels = make(map[string]KernelInterface)
 	}
 
-	if app.startedModules == nil {
-		app.startedModules = make(map[string]struct{})
+	if app.startedKernels == nil {
+		app.startedKernels = make(map[string]struct{})
 	}
 
 	// Инициализация конфига апп

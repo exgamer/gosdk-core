@@ -2,7 +2,7 @@ package app
 
 import "context"
 
-type ModuleInterface interface {
+type KernelInterface interface {
 	Name() string
 	Register(a *App) error
 	Start(a *App) error
