@@ -51,14 +51,24 @@ func (app *App) RegisterModule(m ModuleInterface) error {
 		panic("module name is empty")
 	}
 
+	// 1) быстрые проверки под локом
 	app.mu.Lock()
-	defer app.mu.Unlock()
-
 	if _, exists := app.modules[name]; exists {
+		app.mu.Unlock()
 		panic("module already registered: " + name)
 	}
-
+	// резервируем слот, чтобы параллельно не зарегистрировали второй раз
 	app.modules[name] = m
+	app.mu.Unlock()
+
+	// 2) тяжёлая часть без лока
+	if err := m.Register(app); err != nil {
+		// откат
+		app.mu.Lock()
+		delete(app.modules, name)
+		app.mu.Unlock()
+		return fmt.Errorf("register %s: %w", name, err)
+	}
 
 	return nil
 }
@@ -71,11 +81,6 @@ func (app *App) RunModule(name string) error {
 
 	// 1) Быстрые проверки + резервируем старт под локом
 	app.mu.Lock()
-
-	if len(app.modules) == 0 {
-		app.mu.Unlock()
-		return fmt.Errorf("no modules registered")
-	}
 
 	module, ok := app.modules[name]
 	if !ok || module == nil {
@@ -98,14 +103,8 @@ func (app *App) RunModule(name string) error {
 		app.mu.Unlock()
 	}
 
-	// 2) Тяжёлые операции — без лока
-	if err := module.Register(app); err != nil {
-		rollbackStarted()
-		return fmt.Errorf("register %s: %w", name, err)
-	}
-
 	if err := module.Start(app); err != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), app.shutdownTimeout)
+		ctx, cancel := context.WithTimeout(app.ctx, app.shutdownTimeout)
 		defer cancel()
 		_ = module.Stop(ctx)
 
@@ -133,7 +132,7 @@ func (app *App) ensureInit() error {
 // initApp инициализация приложения
 func (app *App) initApp() error {
 	app.stopHooks = make([]func(ctx context.Context) error, 0)
-	app.shutdownTimeout = 10 * time.Second
+	app.shutdownTimeout = 30 * time.Second //@TODO возможно вынести в конфиг
 
 	if app.errCh == nil {
 		app.errCh = make(chan error, 1) // буфер 1, чтобы не блокировать
@@ -215,6 +214,10 @@ func (app *App) WaitForShutdown() {
 			log.Println("Shutting down application (context canceled)...")
 		}
 
+		if app.cancel != nil {
+			app.cancel()
+		}
+
 		// второй сигнал — форс
 		go func() {
 			<-stop
@@ -233,10 +236,6 @@ func (app *App) WaitForShutdown() {
 			if err := hooks[i](ctx); err != nil {
 				log.Printf("Shutdown hook error: %v", err)
 			}
-		}
-
-		if app.cancel != nil {
-			app.cancel()
 		}
 
 		log.Println("Application stopped gracefully.")
