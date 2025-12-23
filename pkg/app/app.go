@@ -112,6 +112,7 @@ func (app *App) initApp() error {
 
 		spew.Dump(baseConfig) // TODO убрать
 		app.BaseConfig = baseConfig
+		di.Register(app.Container, app.BaseConfig)
 	}
 
 	// Timezone
@@ -122,6 +123,7 @@ func (app *App) initApp() error {
 				return err
 			}
 			app.Location = location
+			di.Register(app.Container, app.Location)
 		}
 	}
 
