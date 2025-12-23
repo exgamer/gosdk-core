@@ -51,10 +51,6 @@ func main() {
         log.Fatal(err)
     }
 
-    if err := appInstance.RegisterKernel(&modules.CommonKernel{}); err != nil {
-        log.Fatal(err)
-    }
-
     if err := appInstance.RegisterKernel(&modules.HttpKernel{}); err != nil {
         log.Fatal(err)
     }

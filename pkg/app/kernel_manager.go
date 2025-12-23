@@ -7,6 +7,8 @@ import (
 	"sync"
 )
 
+var ErrKernelNotInited = errors.New("kernel not initialized")
+
 type KernelManager struct {
 	mu      sync.Mutex
 	kernels map[string]KernelInterface
@@ -15,16 +17,16 @@ type KernelManager struct {
 
 type kernelState struct {
 	// Init
-	initOnce sync.Once
-	initErr  error
-	initDone chan struct{} // закрывается когда init завершён
+	initOnce   sync.Once
+	initErr    error
+	initDone   chan struct{}
+	initCalled bool // <-- добавили
 
 	// Start
 	startOnce sync.Once
 	startErr  error
-	startDone chan struct{} // закрывается когда start завершён
+	startDone chan struct{}
 
-	// Stop hook (чтобы не добавить дважды)
 	stopHookOnce sync.Once
 }
 
@@ -88,6 +90,13 @@ func (km *KernelManager) Init(app *App, name string) error {
 		return err
 	}
 
+	// помечаем, что Init был инициирован хотя бы раз
+	km.mu.Lock()
+	if !st.initCalled {
+		st.initCalled = true
+	}
+	km.mu.Unlock()
+
 	st.initOnce.Do(func() {
 		defer close(st.initDone)
 		st.initErr = k.Init(app)
@@ -104,20 +113,29 @@ func (km *KernelManager) Init(app *App, name string) error {
 
 // Run гарантирует Init + Start (start тоже один раз, остальные ждут).
 func (km *KernelManager) Run(app *App, name string) error {
-	if err := km.Init(app, name); err != nil {
-		return err
-	}
-
 	k, st, err := km.get(name)
 	if err != nil {
 		return err
+	}
+
+	km.mu.Lock()
+	initCalled := st.initCalled
+	km.mu.Unlock()
+
+	if !initCalled {
+		return fmt.Errorf("%w: %s (call Init first)", ErrKernelNotInited, name)
+	}
+
+	// ждём завершения init, если он был запущен
+	<-st.initDone
+	if st.initErr != nil {
+		return fmt.Errorf("init %s: %w", name, st.initErr)
 	}
 
 	st.startOnce.Do(func() {
 		defer close(st.startDone)
 
 		if err := k.Start(app); err != nil {
-			// попытка корректно остановить, если старт провалился
 			ctx, cancel := context.WithTimeout(app.ctx, app.shutdownTimeout)
 			defer cancel()
 			_ = k.Stop(ctx)
@@ -126,7 +144,6 @@ func (km *KernelManager) Run(app *App, name string) error {
 			return
 		}
 
-		// Регистрируем stop-hook строго один раз
 		st.stopHookOnce.Do(func() {
 			app.AddStopHook(func(ctx context.Context) error {
 				return k.Stop(ctx)
@@ -135,11 +152,9 @@ func (km *KernelManager) Run(app *App, name string) error {
 	})
 
 	<-st.startDone
-
 	if st.startErr != nil {
 		return fmt.Errorf("start %s: %w", name, st.startErr)
 	}
 
-	// Повторный Run -> просто nil (идемпотентно)
 	return nil
 }
