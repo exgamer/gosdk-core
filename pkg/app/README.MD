@@ -19,7 +19,7 @@
 
 ---
 
-## Интерфейс модуля
+## Интерфейс ядра
 
 ```go
 type KernelInterface interface {

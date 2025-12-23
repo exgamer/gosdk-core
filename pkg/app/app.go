@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/exgamer/gosdk-core/pkg/config"
@@ -23,6 +24,7 @@ type App struct {
 	Location        *time.Location
 	Container       *di.Container
 	kernels         map[string]KernelInterface
+	initedKernels   map[string]struct{}
 	startedKernels  map[string]struct{}
 	stopHooks       []func(ctx context.Context) error
 	shutdownTimeout time.Duration
@@ -40,34 +42,63 @@ func (app *App) GetContext() context.Context {
 	return app.ctx
 }
 
-// RegisterKernel регистрирует модуль приложения
-func (app *App) RegisterKernel(m KernelInterface) error {
+// RegisterKernel регистрирует kernel
+func (app *App) RegisterKernel(k KernelInterface) error {
 	if err := app.ensureInit(); err != nil {
 		return err
 	}
 
-	name := m.Name()
+	name := k.Name()
 	if name == "" {
-		panic("kernel name is empty")
+		return errors.New("kernel name is empty")
+	}
+
+	app.mu.Lock()
+	defer app.mu.Unlock()
+
+	if _, exists := app.kernels[name]; exists {
+		return errors.New("kernel already registered: " + name)
+	}
+
+	app.kernels[name] = k
+
+	return nil
+}
+
+// InitKernel выполняет init kernel (один раз)
+func (app *App) InitKernel(name string) error {
+	if err := app.ensureInit(); err != nil {
+		return err
 	}
 
 	// 1) быстрые проверки под локом
 	app.mu.Lock()
-	if _, exists := app.kernels[name]; exists {
+	k, ok := app.kernels[name]
+	if !ok || k == nil {
 		app.mu.Unlock()
-		panic("kernel already registered: " + name)
+		return fmt.Errorf("kernel not registered: %s", name)
 	}
-	// резервируем слот, чтобы параллельно не зарегистрировали второй раз
-	app.kernels[name] = m
+
+	if _, inited := app.initedKernels[name]; inited {
+		app.mu.Unlock()
+
+		return nil // уже инициализирован — ок
+	}
+
+	// резервируем "как будто inited", чтобы параллельный InitKernel не вошёл
+	app.initedKernels[name] = struct{}{}
 	app.mu.Unlock()
 
-	// 2) тяжёлая часть без лока
-	if err := m.Register(app); err != nil {
-		// откат
+	rollback := func() {
 		app.mu.Lock()
-		delete(app.kernels, name)
+		delete(app.initedKernels, name)
 		app.mu.Unlock()
-		return fmt.Errorf("register %s: %w", name, err)
+	}
+
+	// 2) тяжёлая часть без лока
+	if err := k.Init(app); err != nil {
+		rollback()
+		return fmt.Errorf("init %s: %w", name, err)
 	}
 
 	return nil
@@ -79,21 +110,27 @@ func (app *App) RunKernel(name string) error {
 		return err
 	}
 
-	// 1) Быстрые проверки + резервируем старт под локом
+	// гарантируем init
+	if err := app.InitKernel(name); err != nil {
+		return err
+	}
+
+	// 1) резервируем старт под локом
 	app.mu.Lock()
 
 	kernel, ok := app.kernels[name]
 	if !ok || kernel == nil {
 		app.mu.Unlock()
-		return fmt.Errorf("module not registered: %s", name)
+
+		return fmt.Errorf("kernel not registered: %s", name)
 	}
 
 	if _, exists := app.startedKernels[name]; exists {
 		app.mu.Unlock()
-		return fmt.Errorf("module already started: %s", name)
+
+		return fmt.Errorf("kernel already started: %s", name)
 	}
 
-	// резервируем, чтобы параллельный RunModule не стартанул второй раз
 	app.startedKernels[name] = struct{}{}
 	app.mu.Unlock()
 
@@ -103,6 +140,7 @@ func (app *App) RunKernel(name string) error {
 		app.mu.Unlock()
 	}
 
+	// 2) старт без лока
 	if err := kernel.Start(app); err != nil {
 		ctx, cancel := context.WithTimeout(app.ctx, app.shutdownTimeout)
 		defer cancel()
@@ -112,7 +150,6 @@ func (app *App) RunKernel(name string) error {
 		return fmt.Errorf("start %s: %w", name, err)
 	}
 
-	// 3) Хук добавляем потокобезопасно
 	app.AddStopHook(func(ctx context.Context) error {
 		return kernel.Stop(ctx)
 	})
@@ -149,6 +186,10 @@ func (app *App) initApp() error {
 
 	if app.kernels == nil {
 		app.kernels = make(map[string]KernelInterface)
+	}
+
+	if app.initedKernels == nil {
+		app.initedKernels = make(map[string]struct{})
 	}
 
 	if app.startedKernels == nil {
