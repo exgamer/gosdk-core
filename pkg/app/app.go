@@ -49,6 +49,14 @@ func (app *App) RegisterKernel(k KernelInterface) error {
 	return app.KernelManager.Register(k)
 }
 
+func (app *App) InitKernels() error {
+	if err := app.ensureInit(); err != nil {
+		return err
+	}
+
+	return app.KernelManager.InitAll(app)
+}
+
 // InitKernel выполняет init kernel (один раз)
 func (app *App) InitKernel(name string) error {
 	if err := app.ensureInit(); err != nil {

@@ -83,6 +83,17 @@ func (km *KernelManager) get(name string) (KernelInterface, *kernelState, error)
 	return k, st, nil
 }
 
+func (km *KernelManager) InitAll(app *App) error {
+	for name, _ := range km.kernels {
+		err := km.Init(app, name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Init выполняет Init(kernel) ровно один раз, остальные ждут завершения и получают ту же ошибку.
 func (km *KernelManager) Init(app *App, name string) error {
 	k, st, err := km.get(name)
