@@ -40,6 +40,18 @@ func (app *App) GetContext() context.Context {
 	return app.ctx
 }
 
+func (app *App) RegisterAndInitKernels(k ...KernelInterface) error {
+	if err := app.RegisterKernels(k...); err != nil {
+		return err
+	}
+
+	if err := app.InitKernels(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (app *App) RegisterKernels(k ...KernelInterface) error {
 	if err := app.ensureInit(); err != nil {
 		return err
