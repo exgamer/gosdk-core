@@ -174,6 +174,11 @@ func (app *App) initApp() error {
 		app.KernelManager = NewKernelManager()
 	}
 
+	// ModuleManager
+	if app.ModuleManager == nil {
+		app.ModuleManager = NewModuleManager()
+	}
+
 	// Config
 	{
 		if err := config.ReadEnv(); err != nil {
