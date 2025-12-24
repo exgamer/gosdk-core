@@ -37,6 +37,17 @@ func NewKernelManager() *KernelManager {
 	}
 }
 
+func (km *KernelManager) RegisterAll(kernels ...KernelInterface) error {
+	for _, kernel := range kernels {
+		err := km.Register(kernel)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (km *KernelManager) Register(k KernelInterface) error {
 	if k == nil {
 		return errors.New("kernel is nil")
