@@ -23,6 +23,7 @@ type App struct {
 	Container  *di.Container
 
 	KernelManager *KernelManager
+	ModuleManager *ModuleManager
 
 	stopHooks       []func(ctx context.Context) error
 	shutdownTimeout time.Duration
@@ -38,6 +39,52 @@ type App struct {
 
 func (app *App) GetContext() context.Context {
 	return app.ctx
+}
+
+func (app *App) RegisterAndInitModules(m ...ModuleInterface) error {
+	if err := app.RegisterModules(m...); err != nil {
+		return err
+	}
+
+	if err := app.InitModules(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (app *App) RegisterModules(m ...ModuleInterface) error {
+	if err := app.ensureInit(); err != nil {
+		return err
+	}
+
+	return app.ModuleManager.RegisterAll(m...)
+}
+
+// RegisterModule регистрирует модуль
+func (app *App) RegisterModule(m ModuleInterface) error {
+	if err := app.ensureInit(); err != nil {
+		return err
+	}
+
+	return app.ModuleManager.Register(m)
+}
+
+func (app *App) InitModules() error {
+	if err := app.ensureInit(); err != nil {
+		return err
+	}
+
+	return app.ModuleManager.InitAll(app)
+}
+
+// InitModule выполняет init модуля (один раз)
+func (app *App) InitModule(name string) error {
+	if err := app.ensureInit(); err != nil {
+		return err
+	}
+
+	return app.ModuleManager.Init(app, name)
 }
 
 func (app *App) RegisterAndInitKernels(k ...KernelInterface) error {
