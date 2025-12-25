@@ -35,6 +35,8 @@ go get github.com/exgamer/gosdk-core
 
 [Работа с ошибками](pkg/exception/README.MD)
 
+[Debug Collector](pkg/debug/README.MD)
+
 ---
 
 ## 🧪 Рекомендации
