@@ -65,6 +65,9 @@ go get github.com/exgamer/gosdk-core
 
 - 🐞 **Debug Collector**
     - [Debug README](pkg/debug/README.MD)
+    - 
+- 📘 **Logger**
+  - [Как юзать логгер](pkg/logger/README.md)
 
 ---
 
