@@ -96,7 +96,7 @@ func ParseLevel(name string) Level {
 }
 
 func IsDebugLevel(logLevel string) bool {
-	if ParseLevel(logLevel) < LevelDebug {
+	if ParseLevel(logLevel) > LevelDebug {
 		return false
 	}
 
