@@ -4,5 +4,5 @@ package config
 type AppInfo struct {
 	ServiceName string
 	AppEnv      string
-	DebugMode   bool
+	LogLevel    string
 }
