@@ -1,102 +1,46 @@
-# Global Logger (stdlib)
+# logger
 
-Простой **глобальный логгер** на стандартном пакете `log`, чтобы вызывать логи **из любого места кода** без DI.
-
-## Возможности
-
-- Singleton (глобальный экземпляр)
-- Потокобезопасная инициализация
-- Уровни логирования: `DEBUG | INFO | ERROR`
-- Подмена логгера в `main` (файл, buffer, `io.Discard`)
-- Подходит для сервисов, CLI, SDK
-
----
+Лёгкий потокобезопасный логгер-обёртка над стандартным `log.Logger` из
+Go с: - уровнями логирования (TRACE/DEBUG/INFO/WARN/ERROR/FATAL) -
+форматированием в одну строку: `timestamp LEVEL message` - возможностью
+подменить `*log.Logger` - управлением уровнем через `LOG_LEVEL` 
 
 ## Быстрый старт
 
-### Инициализация
+``` go
+logger.Init()
+logger.SetLevel(logger.LevelInfo)
 
-```go
-func main() {
-    app.Info("service started")
-    app.Debug("debug message")
-    app.Error("something went wrong")
-}
+logger.Info("service started")
+logger.Debug("debug message")
 ```
 
-### Управление уровнем логов
+## Уровни логирования
 
-По умолчанию уровень `INFO`.
+Поддерживаемые уровни: `trace`, `debug`, `info`, `warn`, `error`,
+`fatal`
 
-```bash
-LOG_LEVEL=DEBUG ./app
-LOG_LEVEL=ERROR ./app
+Лог выводится, если уровень сообщения \>= текущего уровня логгера.
+
+## ENV
+
+``` bash
+LOG_LEVEL=info
 ```
 
----
+``` go
+logger.SetLevel(logger.ParseLevel(os.Getenv("LOG_LEVEL")))
+```
 
 ## Подмена логгера
 
-### Логирование в файл
-
-```go
-f, err := os.OpenFile("app.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-if err != nil {
-    panic(err)
-}
-defer f.Close()
-
-app.SetLogger(log.New(f, "", 0))
+``` go
+custom := log.New(os.Stdout, "[service] ", 0)
+logger.SetLogger(custom)
 ```
 
-### Отключить логирование (no-op)
+## Рекомендации
 
-```go
-app.SetLogger(log.New(io.Discard, "", 0))
-```
-
-### Использование в тестах
-
-```go
-buf := &bytes.Buffer{}
-app.SetLogger(log.New(buf, "", 0))
-
-app.Info("hello")
-
-t.Log(buf.String())
-```
-
----
-
-## API
-
-### Init(serviceName string)
-
-Инициализация глобального логгера.  
-Вызывается **один раз** при старте приложения.
-
-### SetLogger(logger *log.Logger)
-
-Подменяет глобальный логгер.
-
-### Логирование
-
-```go
-app.Debug("debug message")
-app.Info("info message")
-app.Error("error message")
-```
-
----
-
-## Формат логов
-
-```
-2026-01-08 13:02:11.421 INFO service=catalog-service-go service started
-```
-
----
-
-## Лицензия
-
-MIT
+-   prod: info / warn
+-   staging: debug
+-   local: debug / trace

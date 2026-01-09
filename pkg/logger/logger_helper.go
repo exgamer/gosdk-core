@@ -5,18 +5,21 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 var (
-	once sync.Once
-	mu   sync.RWMutex
-	l    *stdlog.Logger
+	logLevel atomic.Int32
+	once     sync.Once
+	mu       sync.RWMutex
+	l        *stdlog.Logger
 )
 
 func Init() {
 	once.Do(func() {
 		l = stdlog.New(os.Stdout, "", 0)
+		logLevel.Store(int32(LevelInfo))
 	})
 }
 
@@ -30,6 +33,15 @@ func SetLogger(custom *stdlog.Logger) {
 	mu.Lock()
 	l = custom
 	mu.Unlock()
+}
+
+func SetLevel(level Level) {
+	Init()
+	logLevel.Store(int32(level))
+}
+
+func GetLevel() Level {
+	return Level(logLevel.Load())
 }
 
 // internal getter (safe)
@@ -47,19 +59,26 @@ func get() *stdlog.Logger {
 	return cur
 }
 
-func printLog(level, msg string) {
+func printLog(level Level, msg string) {
+	if level < GetLevel() {
+		return
+	}
+
 	var b strings.Builder
 	b.Grow(64 + len(msg))
 
 	b.WriteString(time.Now().Format("2006-01-02 15:04:05.000"))
 	b.WriteString(" ")
-	b.WriteString(level)
+	b.WriteString(level.String())
 	b.WriteString(" ")
 	b.WriteString(msg)
 
 	get().Println(b.String())
 }
 
-func Info(msg string)  { printLog("INFO", msg) }
-func Error(msg string) { printLog("ERROR", msg) }
-func Debug(msg string) { printLog("DEBUG", msg) }
+func Info(msg string)    { printLog(LevelInfo, msg) }
+func Error(msg string)   { printLog(LevelDebug, msg) }
+func Warning(msg string) { printLog(LevelWarn, msg) }
+func Fatal(msg string)   { printLog(LevelFatal, msg) }
+func Trace(msg string)   { printLog(LevelTrace, msg) }
+func Debug(msg string)   { printLog(LevelDebug, msg) }

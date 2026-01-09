@@ -7,5 +7,5 @@ type BaseConfig struct {
 	AppEnv        string `mapstructure:"APP_ENV"    json:"app_env"`
 	Version       string `mapstructure:"APP_VERSION" json:"app_version"`
 	TimeZone      string `mapstructure:"TIMEZONE"    json:"timezone"`
-	Debug         bool   `mapstructure:"DEBUG"    json:"debug"`
+	LogLevel      string `mapstructure:"LOG_LEVEL"    json:"log_level"`
 }
