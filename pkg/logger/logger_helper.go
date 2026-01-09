@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"encoding/json"
+	"fmt"
 	stdlog "log"
 	"os"
 	"strings"
@@ -95,8 +97,8 @@ func ParseLevel(name string) Level {
 	}
 }
 
-func IsDebugLevel(logLevel string) bool {
-	if ParseLevel(logLevel) > LevelDebug {
+func IsDebugLevel() bool {
+	if GetLevel() > LevelDebug {
 		return false
 	}
 
@@ -109,3 +111,30 @@ func Warning(msg string) { printLog(LevelWarn, msg) }
 func Fatal(msg string)   { printLog(LevelFatal, msg) }
 func Trace(msg string)   { printLog(LevelTrace, msg) }
 func Debug(msg string)   { printLog(LevelDebug, msg) }
+
+func Dump(v ...any) {
+	if !IsDebugLevel() {
+		return
+	}
+
+	var msg string
+
+	switch len(v) {
+	case 1:
+		msg = dumpValue(v[0])
+	case 2:
+		msg = fmt.Sprintf("%v=%s", v[0], dumpValue(v[1]))
+	default:
+		msg = dumpValue(v)
+	}
+
+	printLog(LevelDebug, "DUMP "+msg)
+}
+
+func dumpValue(v any) string {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("%#v", v)
+	}
+	return string(b)
+}
