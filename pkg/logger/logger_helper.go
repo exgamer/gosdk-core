@@ -76,6 +76,33 @@ func printLog(level Level, msg string) {
 	get().Println(b.String())
 }
 
+func ParseLevel(name string) Level {
+	switch strings.ToUpper(strings.TrimSpace(name)) {
+	case "TRACE":
+		return LevelTrace
+	case "DEBUG":
+		return LevelDebug
+	case "INFO":
+		return LevelInfo
+	case "WARN":
+		return LevelWarn
+	case "ERROR":
+		return LevelError
+	case "FATAL":
+		return LevelFatal
+	default:
+		return LevelInfo
+	}
+}
+
+func IsDebugLevel(logLevel string) bool {
+	if ParseLevel(logLevel) < LevelDebug {
+		return false
+	}
+
+	return true
+}
+
 func Info(msg string)    { printLog(LevelInfo, msg) }
 func Error(msg string)   { printLog(LevelDebug, msg) }
 func Warning(msg string) { printLog(LevelWarn, msg) }
