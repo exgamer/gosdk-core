@@ -3,7 +3,6 @@ module github.com/exgamer/gosdk-core
 go 1.23.0
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/go-playground/validator/v10 v10.15.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gookit/validate v1.5.2

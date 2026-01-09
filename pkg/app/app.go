@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/exgamer/gosdk-core/pkg/config"
 	"github.com/exgamer/gosdk-core/pkg/di"
 	"github.com/exgamer/gosdk-core/pkg/logger"
@@ -191,9 +190,9 @@ func (app *App) initApp() error {
 			return err
 		}
 
-		spew.Dump(baseConfig) // TODO убрать
 		app.BaseConfig = baseConfig
 		logger.SetLevel(logger.ParseLevel(baseConfig.LogLevel))
+		logger.Dump(baseConfig)
 		di.Register(app.Container, app.BaseConfig)
 	}
 
