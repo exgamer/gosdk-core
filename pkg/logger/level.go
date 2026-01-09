@@ -11,21 +11,19 @@ const (
 	LevelFatal
 )
 
+var levelNames = map[Level]string{
+	LevelTrace: "TRACE",
+	LevelDebug: "DEBUG",
+	LevelInfo:  "INFO",
+	LevelWarn:  "WARN",
+	LevelError: "ERROR",
+	LevelFatal: "FATAL",
+}
+
 func (l Level) String() string {
-	switch l {
-	case LevelTrace:
-		return "TRACE"
-	case LevelDebug:
-		return "DEBUG"
-	case LevelInfo:
-		return "INFO"
-	case LevelWarn:
-		return "WARNING"
-	case LevelError:
-		return "ERROR"
-	case LevelFatal:
-		return "FATAL"
-	default:
-		return "INFO"
+	if s, ok := levelNames[l]; ok {
+		return s
 	}
+
+	return "UNKNOWN"
 }
