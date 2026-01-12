@@ -70,6 +70,10 @@ go get github.com/exgamer/gosdk-core
   - [Как юзать логгер](pkg/logger/README.md)
 
 ---
+- 📘 **AppException**
+  - [Как юзать исключения](pkg/exception/README.MD)
+
+---
 
 ## 🧪 Рекомендации по использованию
 
