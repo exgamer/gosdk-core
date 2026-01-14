@@ -3,11 +3,11 @@
 Таймзона:
 
 ```go
-location, err := app.GetLocation(a *App) (*time.Location, error)
+location, err := app.GetLocation(c *di.Container) (*time.Location, error)
 ```
 
 Базовый конфиг приложения:
 
 ```go
-baseConfig := app.GetBaseConfig(a *App) (*config.BaseConfig, error)
+baseConfig := app.GetBaseConfig(c *di.Container) (*config.BaseConfig, error)
 ```

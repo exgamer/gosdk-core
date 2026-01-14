@@ -58,7 +58,7 @@ go get github.com/exgamer/gosdk-core
     - [Usage Guide](pkg/app/README.MD)
 
 - 🧩 **Dependency Injection**
-    - [Что доступно в DI из коробки](pkg/app/DI_FUNCTIONS_README.MD)
+    - [Что доступно в DI из коробки](pkg/di/DI_FUNCTIONS_README.MD)
 
 - ❗ **Работа с ошибками**
     - [Exception Guide](pkg/exception/README.MD)
