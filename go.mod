@@ -1,6 +1,6 @@
 module github.com/exgamer/gosdk-core
 
-go 1.23.0
+go 1.25.5
 
 require (
 	github.com/go-playground/validator/v10 v10.15.1
