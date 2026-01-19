@@ -9,10 +9,14 @@ Go с: - уровнями логирования (TRACE/DEBUG/INFO/WARN/ERROR/FA
 
 ``` go
 logger.Init()
-logger.SetLevel(logger.LevelInfo)
+logger.SetLevel(context, logger.LevelInfo)
 
-logger.Info("service started")
-logger.Debug("debug message")
+logger.Info(context, "service started")
+logger.Debug(context, "debug message")
+logger.Error(context, "error message")
+logger.Warning(context, "warn message")
+logger.Fatal(context, "fatal message")
+logger.Trace(context, "trace message")
 ```
 
 ## Уровни логирования

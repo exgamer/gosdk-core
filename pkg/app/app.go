@@ -193,7 +193,7 @@ func (app *App) initApp() error {
 
 		app.BaseConfig = baseConfig
 		logger.SetLevel(logger.ParseLevel(baseConfig.LogLevel))
-		logger.Dump(baseConfig)
+		logger.Dump(app.ctx, baseConfig)
 
 		appInfo := config.GetInstanceAppInfo(baseConfig)
 

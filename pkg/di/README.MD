@@ -15,17 +15,17 @@
    rf, err := Resolve[*factories.RedisRepositoryFactory](a.container)
 
    if err != nil {
-    logger.Dump(err)
+    logger.Dump(context, err)
    } else {
-   logger.Dump(rf)
+   logger.Dump(context, rf)
    }
 
    s, err := Resolve[config.BaseConfig](a.container)
 
    if err != nil {
-   logger.Dump(err)
+   logger.Dump(context, err)
    } else {
-   logger.Dump(s)
+   logger.Dump(context, s)
    }
    
 ```

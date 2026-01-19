@@ -1,8 +1,10 @@
 package logger
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	context2 "github.com/exgamer/gosdk-core/pkg/context"
 	stdlog "log"
 	"os"
 	"strings"
@@ -61,17 +63,24 @@ func get() *stdlog.Logger {
 	return cur
 }
 
-func printLog(level Level, msg string) {
+func printLog(ctx context.Context, level Level, msg string) {
 	if level < GetLevel() {
 		return
 	}
 
+	appInfo := context2.GetAppInfoFromContext(ctx)
 	var b strings.Builder
 	b.Grow(64 + len(msg))
 
 	b.WriteString(time.Now().Format("2006-01-02 15:04:05.000"))
 	b.WriteString(" ")
-	b.WriteString(level.String())
+
+	if appInfo == nil {
+		b.WriteString("[" + level.String() + "]")
+	} else {
+		b.WriteString("[" + level.String() + "," + appInfo.ServiceName + "]")
+	}
+
 	b.WriteString(" ")
 	b.WriteString(msg)
 
@@ -105,14 +114,22 @@ func IsDebugLevel() bool {
 	return true
 }
 
-func Info(msg string)    { printLog(LevelInfo, msg) }
-func Error(msg string)   { printLog(LevelDebug, msg) }
-func Warning(msg string) { printLog(LevelWarn, msg) }
-func Fatal(msg string)   { printLog(LevelFatal, msg) }
-func Trace(msg string)   { printLog(LevelTrace, msg) }
-func Debug(msg string)   { printLog(LevelDebug, msg) }
+func IsTraceLevel() bool {
+	if GetLevel() > LevelTrace {
+		return false
+	}
 
-func Dump(v ...any) {
+	return true
+}
+
+func Info(ctx context.Context, msg string)    { printLog(ctx, LevelInfo, msg) }
+func Error(ctx context.Context, msg string)   { printLog(ctx, LevelDebug, msg) }
+func Warning(ctx context.Context, msg string) { printLog(ctx, LevelWarn, msg) }
+func Fatal(ctx context.Context, msg string)   { printLog(ctx, LevelFatal, msg) }
+func Trace(ctx context.Context, msg string)   { printLog(ctx, LevelTrace, msg) }
+func Debug(ctx context.Context, msg string)   { printLog(ctx, LevelDebug, msg) }
+
+func Dump(ctx context.Context, v ...any) {
 	if !IsDebugLevel() {
 		return
 	}
@@ -128,7 +145,7 @@ func Dump(v ...any) {
 		msg = dumpValue(v)
 	}
 
-	printLog(LevelDebug, "DUMP "+msg)
+	printLog(ctx, LevelDebug, "DUMP "+msg)
 }
 
 func dumpValue(v any) string {
