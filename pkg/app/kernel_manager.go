@@ -133,6 +133,32 @@ func (km *KernelManager) Init(app *App, name string) error {
 	return nil
 }
 
+func (km *KernelManager) RunAll(app *App) error {
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(km.kernels))
+
+	for name := range km.kernels {
+		wg.Add(1)
+		go func(kernelName string) {
+			defer wg.Done()
+			if err := km.Run(app, kernelName); err != nil {
+				errCh <- err
+			}
+		}(name)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Run гарантирует Init + Start (start тоже один раз, остальные ждут).
 func (km *KernelManager) Run(app *App, name string) error {
 	k, st, err := km.get(name)

@@ -134,6 +134,14 @@ func (app *App) InitKernel(name string) error {
 	return app.KernelManager.Init(app, name)
 }
 
+func (app *App) RunAll() error {
+	if err := app.ensureInit(); err != nil {
+		return err
+	}
+
+	return app.KernelManager.RunAll(app)
+}
+
 // RunKernel запускает kernel
 func (app *App) RunKernel(name string) error {
 	if err := app.ensureInit(); err != nil {
