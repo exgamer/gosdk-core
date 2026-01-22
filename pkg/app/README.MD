@@ -78,7 +78,7 @@ func (m CommonModule) Register(app *app.App) error {
 
 1. Создание `App`
 2. Регистрация и инициализация ядер (`RegisterAndInitKernels`)
-3. Запуск ядер (`RunKernel`)
+3. Запуск ядер (`RunAll`)
 4. Регистрация и инициализация бизнес модулей (`RegisterAndInitModules`)
 6. Ожидание сигнала завершения (`WaitForShutdown`)
 
@@ -108,7 +108,7 @@ func main() {
         panic(err)
     }
     
-    if err := a.RunKernel(http.HttpKernelName); err != nil {
+    if err := a.All(); err != nil {
         panic(err)
     }
     
