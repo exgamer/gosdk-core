@@ -122,6 +122,29 @@ sentry.CaptureException(err)
 
 ---
 
+# Error Handling
+
+В проекте используется двухуровневая модель ошибок:
+
+- **AppException** — ошибка уровня приложения (domain/application)
+- **HttpException** — ошибка уровня HTTP transport
+
+Это позволяет **разделить бизнес-логику и транспорт**, чтобы сервисы не зависели от HTTP.
+
+---
+
+# 1. AppException (application/domain layer)
+
+`AppException` используется в сервисах и доменной логике.
+
+```go
+    NewValidationException
+    NewNotFoundException
+    NewForbiddenException
+    NewAppException
+```
+
+
 ## Зачем нужен AppException
 
 - прокидывать контекст по слоям (service/repo/api) без кастомных структур
