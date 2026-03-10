@@ -12,6 +12,7 @@
 ```go
 type AppException struct {
     Err           error
+	Kind          ErrorKind
     Context       map[string]any
     TrackInSentry bool
 }

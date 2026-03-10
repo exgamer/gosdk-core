@@ -1,12 +1,22 @@
 package exception
 
+type ErrorKind string
+
+const (
+	ErrorKindValidation ErrorKind = "validation"
+	ErrorKindNotFound   ErrorKind = "not_found"
+	ErrorKindForbidden  ErrorKind = "forbidden"
+	ErrorKindInternal   ErrorKind = "internal"
+)
+
 func NewAppException(err error, context map[string]any, trackInSentry bool) *AppException {
-	return &AppException{err, context, trackInSentry}
+	return &AppException{err, ErrorKindInternal, context, trackInSentry}
 }
 
 // AppException Модель данных для описания ошибки
 type AppException struct {
 	Err           error
+	Kind          ErrorKind
 	Context       map[string]any
 	TrackInSentry bool
 }
