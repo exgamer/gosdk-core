@@ -20,20 +20,18 @@ func NewValidationException(context map[string]any, trackInSentry bool) *AppExce
 	}
 }
 
-func NewNotFoundException(err error, context map[string]any, trackInSentry bool) *AppException {
+func NewNotFoundException(err error, trackInSentry bool) *AppException {
 	return &AppException{
 		Err:           err,
 		Kind:          ErrorKindNotFound,
-		Context:       context,
 		TrackInSentry: trackInSentry,
 	}
 }
 
-func NewForbiddenException(err error, context map[string]any, trackInSentry bool) *AppException {
+func NewForbiddenException(err error, trackInSentry bool) *AppException {
 	return &AppException{
 		Err:           err,
 		Kind:          ErrorKindForbidden,
-		Context:       context,
 		TrackInSentry: trackInSentry,
 	}
 }
