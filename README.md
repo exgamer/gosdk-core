@@ -69,6 +69,8 @@ go get github.com/exgamer/gosdk-core
 - 📘 **Logger**
   - [Как юзать логгер](pkg/logger/README.md)
 
+-    **Переменные окружения**
+  - [Переменные окружения](pkg/config/ENV_README.md)
 ---
 - 📘 **AppException**
   - [Как юзать исключения](pkg/exception/README.MD)

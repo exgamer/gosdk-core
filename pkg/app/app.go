@@ -23,6 +23,8 @@ type App struct {
 	Location   *time.Location
 	Container  *di.Container
 
+	EnvFilePaths []string
+
 	KernelManager *KernelManager
 	ModuleManager *ModuleManager
 
@@ -190,7 +192,7 @@ func (app *App) initApp() error {
 
 	// Config
 	{
-		if err := config.ReadEnv(); err != nil {
+		if err := config.LoadEnv(app.EnvFilePaths...); err != nil {
 			return err
 		}
 
@@ -289,4 +291,10 @@ func (app *App) Fail(err error) {
 	if app.cancel != nil {
 		app.cancel()
 	}
+}
+
+func (app *App) SetEnvFiles(paths ...string) *App {
+	app.EnvFilePaths = paths
+
+	return app
 }

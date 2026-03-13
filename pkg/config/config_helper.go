@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	structHelper "github.com/exgamer/gosdk-core/pkg/structures"
 	"github.com/spf13/viper"
@@ -9,21 +10,35 @@ import (
 	"strings"
 )
 
-// ReadEnv Чтение переменок окружения
-func ReadEnv() error {
-	root, err := os.Getwd()
+// LoadEnv читает env файлы по порядку + всегда включает OS ENV.
+// Первый найденный файл используется.
+func LoadEnv(paths ...string) error {
+	viper.Reset()
 
-	if err != nil {
-		return err
+	viper.AutomaticEnv()
+	viper.SetConfigType("env")
+
+	if len(paths) == 0 {
+		paths = []string{".env"}
 	}
 
-	viper.AddConfigPath(root)
-	viper.SetConfigType("env")
-	viper.SetConfigName(".env")
-	viper.AutomaticEnv()
-	err = viper.ReadInConfig()
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
 
-	if err != nil {
+		viper.SetConfigFile(path)
+
+		err := viper.ReadInConfig()
+		if err == nil {
+			return nil
+		}
+
+		var notFound viper.ConfigFileNotFoundError
+		if errors.As(err, &notFound) || os.IsNotExist(err) {
+			continue
+		}
+
 		return err
 	}
 
@@ -51,7 +66,7 @@ func InitConfig[E any](config *E) error {
 	//	// Convert the map to JSON
 	jsonData, _ := json.Marshal(osEnvMap)
 	// Convert the JSON to a struct
-	uErr := json.Unmarshal(jsonData, &config)
+	uErr := json.Unmarshal(jsonData, config)
 
 	if uErr != nil {
 		return uErr
