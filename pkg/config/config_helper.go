@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	structHelper "github.com/exgamer/gosdk-core/pkg/structures"
 	"github.com/spf13/viper"
@@ -12,37 +11,46 @@ import (
 
 // LoadEnv читает env файлы по порядку + всегда включает OS ENV.
 // Первый найденный файл используется.
-func LoadEnv(paths ...string) error {
+func LoadEnv(paths ...string) (string, error) {
 	viper.Reset()
-
-	viper.AutomaticEnv()
 	viper.SetConfigType("env")
 
 	if len(paths) == 0 {
-		paths = []string{".env"}
+		paths = []string{
+			".env",
+		}
 	}
+
+	var loadedFrom string
 
 	for _, path := range paths {
 		if path == "" {
 			continue
 		}
 
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return "", err
+		}
+
 		viper.SetConfigFile(path)
 
-		err := viper.ReadInConfig()
-		if err == nil {
-			return nil
+		if err := viper.ReadInConfig(); err != nil {
+			return "", err
 		}
 
-		var notFound viper.ConfigFileNotFoundError
-		if errors.As(err, &notFound) || os.IsNotExist(err) {
-			continue
-		}
+		loadedFrom = path
 
-		return err
+		break
 	}
 
-	return nil
+	// ENV всегда сверху
+	viper.AutomaticEnv()
+
+	return loadedFrom, nil
 }
 
 // InitConfig Инициализирует конфиг из переменок окружения

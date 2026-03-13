@@ -192,8 +192,16 @@ func (app *App) initApp() error {
 
 	// Config
 	{
-		if err := config.LoadEnv(app.EnvFilePaths...); err != nil {
+		loadedFrom, err := config.LoadEnv(app.EnvFilePaths...)
+
+		if err != nil {
 			return err
+		}
+
+		if loadedFrom != "" {
+			log.Println("env loaded from: " + loadedFrom)
+		} else {
+			log.Println("env loaded from OS ENV only")
 		}
 
 		baseConfig := &config.BaseConfig{}
