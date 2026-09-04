@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Level - уровень серьёзности события для error-репортера
@@ -72,6 +73,27 @@ func get() Reporter {
 	defer mu.RUnlock()
 
 	return reporter
+}
+
+// Flusher - опциональный интерфейс для Reporter. Некоторые реализации
+// (например sentry-go) отправляют события асинхронно в фоновой горутине -
+// без явного ожидания перед завершением процесса последнее событие можно
+// потерять. Актуально для one-shot процессов без graceful shutdown
+// (консольные команды: обычный сервис успевает отправить и так, пока живёт
+// или в момент штатной остановки по SIGTERM).
+type Flusher interface {
+	Flush(timeout time.Duration) bool
+}
+
+// Flush синхронно ждёт отправки уже поставленных в очередь событий, если
+// текущий Reporter это поддерживает (реализует Flusher). Для noop-репортера
+// или реализации без поддержки Flush - no-op, возвращает true сразу.
+func Flush(timeout time.Duration) bool {
+	if f, ok := get().(Flusher); ok {
+		return f.Flush(timeout)
+	}
+
+	return true
 }
 
 // reportedError - маркер "эта ошибка уже отправлена через errorreporter".
