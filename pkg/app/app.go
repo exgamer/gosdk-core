@@ -281,6 +281,13 @@ func (app *App) WaitForShutdown() {
 			}
 		}
 
+		// Зависимости закрываются после остановки kernel'ов, которые их используют
+		if app.Container != nil {
+			if err := app.Container.Close(ctx); err != nil {
+				log.Printf("Container close error: %v", err)
+			}
+		}
+
 		log.Println("Application stopped gracefully.")
 	})
 }

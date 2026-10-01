@@ -1,31 +1,186 @@
-### Пример использования контейнера зависимостей
+# DI-контейнер
 
-## Не рекомендуется использовать контейнер вне App
+Минималистичный контейнер зависимостей на дженериках: инстансы и ленивые фабрики-синглтоны.
+Безопасен для конкурентного использования.
+
+> Не рекомендуется использовать контейнер вне App. Контейнер создаётся в `app.go`
+> (`di.NewContainer()`) и доступен модулям через `a.Container`.
+
+Что регистрирует SDK из коробки: [DI_FUNCTIONS_README.MD](DI_FUNCTIONS_README.MD).
+
+## Быстрый старт
+
 ```go
+// Готовый объект
+di.Register(a.Container, &config.HttpConfig{Port: "8080"})
 
-   container := di.NewContainer()
+// Ленивая фабрика: вызовется при первом Resolve, результат закешируется
+di.Register(a.Container, func() *Service {
+    return NewService()
+})
 
-   // Регистрируем сервис
-   Register(a.container, config.BaseConfig{ServerAddress: "sdfasdfasdfas"})
-   Register(a.container, factories.NewRedisRepositoryFactory(a.redisClient))
-   Register(a.container, func() config.BaseConfig {
-        return config.BaseConfig{ServerAddress: "sdfasdfasdfas"}
-   })
+// Конструктор с ошибкой
+di.Register(a.Container, repository.NewRepo) // func NewRepo() (*Repo, error)
 
-   rf, err := Resolve[*factories.RedisRepositoryFactory](a.container)
+svc, err := di.Resolve[*Service](a.Container)
 
-   if err != nil {
-    logger.Dump(context, err)
-   } else {
-   logger.Dump(context, rf)
-   }
+// Паника вместо ошибки - для старта, где без зависимости продолжать нельзя
+svc := di.MustResolve[*Service](a.Container)
 
-   s, err := Resolve[config.BaseConfig](a.container)
-
-   if err != nil {
-   logger.Dump(context, err)
-   } else {
-   logger.Dump(context, s)
-   }
-   
+// Есть ли зависимость (фабрику не вызывает)
+if di.Has[*Service](a.Container) { ... }
 ```
+
+## API
+
+| Функция | Что делает |
+|---|---|
+| `Register[T](c, v)` | регистрирует инстанс или фабрику |
+| `RegisterNamed[T](c, name, v)` | то же под именем |
+| `Resolve[T](c) (T, error)` | получает зависимость |
+| `ResolveNamed[T](c, name) (T, error)` | то же по имени |
+| `MustResolve[T](c) T` | получает зависимость, при ошибке - паника этой ошибкой |
+| `MustResolveNamed[T](c, name) T` | то же по имени |
+| `Has[T](c) bool` | зарегистрирована ли зависимость (инстанс или фабрика), фабрику не вызывает |
+| `HasNamed[T](c, name) bool` | то же по имени |
+| `c.Close(ctx) error` | закрывает созданное фабриками, см. [Закрытие](#закрытие) |
+
+## Регистрация
+
+### Ключ - тип, под которым регистрируете
+
+Зависимость сохраняется под **статическим** типом `T`, а не под типом значения.
+Резолвить нужно ровно тем же типом.
+
+| Регистрация | `Resolve[*Impl]` | `Resolve[Svc]` |
+|---|---|---|
+| `di.Register(c, &Impl{})` | ✅ | ❌ |
+| `di.Register[Svc](c, &Impl{})` | ❌ | ✅ |
+| `var s Svc = &Impl{}; di.Register(c, s)` | ❌ | ✅ |
+| `di.Register(c, func() Svc { ... })` | ❌ | ✅ |
+
+`T` и `*T` - разные ключи. Именованный тип отличается от базового (`type Port int` ≠ `int`).
+
+### Фабрики
+
+Любая функция регистрируется как фабрика своего первого возвращаемого типа.
+Поддерживаются только две сигнатуры:
+
+```go
+func() T
+func() (T, error)
+```
+
+Остальные (с аргументами, variadic, второй результат не `error`, больше двух результатов),
+а также `nil`-функция - **паника в `Register`**, то есть ошибка конфигурации видна при старте.
+
+Поведение фабрики:
+
+- вызывается при первом `Resolve`, не при регистрации;
+- вызывается **ровно один раз**, даже если `Resolve` пришёл одновременно из многих горутин:
+  остальные ждут результат;
+- результат кешируется - дальше `Resolve` отдаёт тот же объект;
+- внутри фабрики можно резолвить другие зависимости:
+
+```go
+di.Register(a.Container, func() (*Service, error) {
+    repo, err := di.Resolve[*Repo](a.Container)
+    if err != nil {
+        return nil, err
+    }
+
+    return NewService(repo), nil
+})
+```
+
+### Ошибка фабрики
+
+Если `func() (T, error)` вернула ошибку:
+
+- `Resolve` возвращает её, обёрнутую в `ErrFactoryFailed` с типом зависимости:
+  `factory failed: *repository.Repo: connection refused`;
+- результат **не кешируется** - следующий `Resolve` вызовет фабрику снова;
+- горутины, ждавшие этот вызов, получают ту же ошибку (фабрика не дёргается N раз подряд).
+
+Если фабрика запаниковала, паника идёт в вызвавшую горутину, ожидающие получают
+`ErrFactoryFailed` (`factory panicked`), следующий `Resolve` вызовет фабрику снова.
+
+### Повторная регистрация
+
+Побеждает последняя регистрация:
+
+- новый инстанс заменяет фабрику и ранее созданный ей объект;
+- новая фабрика заменяет инстанс - следующий `Resolve` вызовет её.
+
+### Именованные зависимости
+
+Несколько зависимостей одного типа различаются именем:
+
+```go
+di.RegisterNamed(a.Container, "primary", func() (*sql.DB, error) { return sql.Open("postgres", primaryDSN) })
+di.RegisterNamed(a.Container, "replica", func() (*sql.DB, error) { return sql.Open("postgres", replicaDSN) })
+
+replica, err := di.ResolveNamed[*sql.DB](a.Container, "replica")
+```
+
+- имя - часть ключа: `Resolve[*sql.DB]` не найдёт `"replica"`, и наоборот;
+- пустое имя - то же, что безымянная регистрация;
+- всё остальное (фабрики, синглтон, ошибки, циклы, `Close`) работает так же;
+- имя попадает в тексты ошибок: `dependency not found: *sql.DB named "replica"`.
+
+## Закрытие
+
+`c.Close(ctx)` закрывает объекты, **созданные фабриками контейнера**. Вызывается автоматически
+в `app.WaitForShutdown()` после stop-хуков kernel'ов.
+
+- Порядок - обратный порядку создания: сервис закрывается раньше репозитория, репозиторий - раньше БД.
+- Поддерживаются методы (в порядке приоритета): `Shutdown(ctx) error`, `Close() error`, `Close()`.
+  Объекты без них и nil пропускаются.
+- **Готовые инстансы, переданные в `Register`, не закрываются**: ими владеет тот, кто их создал
+  (например, kernel, который сам закрывает свой клиент в `Stop`). Так не бывает двойного закрытия.
+- Ошибки собираются через `errors.Join`, ошибка или паника одного объекта не мешает закрыть остальные.
+- Повторный вызов ничего не делает.
+
+Если хотите, чтобы контейнер закрыл зависимость за вас, регистрируйте её фабрикой:
+
+```go
+di.Register(a.Container, func() (*Client, error) { return NewClient(cfg) }) // закроется в Close
+di.Register(a.Container, client)                                            // не закроется
+```
+
+## Ошибки
+
+```go
+svc, err := di.Resolve[*Service](c)
+
+switch {
+case errors.Is(err, di.ErrDependencyNotFound): // не зарегистрирована
+case errors.Is(err, di.ErrCircularDependency): // фабрики зависят друг от друга по кругу
+case errors.Is(err, di.ErrFactoryFailed):      // фабрика вернула ошибку или запаниковала
+}
+```
+
+Исходная ошибка фабрики доступна через `errors.Is` / `errors.As`.
+
+### Циклические зависимости
+
+```go
+di.Register(c, func() (*A, error) { _, err := di.Resolve[*B](c); return &A{}, err })
+di.Register(c, func() (*B, error) { _, err := di.Resolve[*A](c); return &B{}, err })
+
+_, err := di.Resolve[*A](c)
+// circular dependency: *A -> *B -> *A
+```
+
+Цикл обнаруживается и в одной горутине, и между горутинами, которые одновременно
+создают зависимости друг друга. После ошибки контейнер остаётся рабочим.
+
+## Ограничения
+
+- Контейнер создавать только через `di.NewContainer()`: нулевой `di.Container{}` не инициализирован.
+- Цикл через **разные** контейнеры не обнаруживается и приведёт к зависанию.
+- Для поиска циклов используется id горутины из заголовка `runtime.Stack`.
+  Если формат когда-нибудь изменится, поиск циклов отключится (цикл приведёт к зависанию),
+  остальная логика продолжит работать.
+- Объект, который фабрика создаёт уже после `Close` (например, в ещё работающей горутине),
+  не будет закрыт - `Close` вызывается в конце остановки, когда резолвов уже быть не должно.
