@@ -2,11 +2,15 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	structHelper "github.com/exgamer/gosdk-core/pkg/structures"
-	"github.com/spf13/viper"
 	"os"
+	"reflect"
 	"strings"
+
+	"github.com/spf13/viper"
+
+	structHelper "github.com/exgamer/gosdk-core/pkg/structures"
 )
 
 // LoadEnv читает env файлы по порядку + всегда включает OS ENV.
@@ -53,7 +57,9 @@ func LoadEnv(paths ...string) (string, error) {
 	return loadedFrom, nil
 }
 
-// InitConfig Инициализирует конфиг из переменок окружения
+// InitConfig Инициализирует конфиг из переменок окружения.
+// Значение из окружения процесса приводится к типу поля (int*, uint*, float*, bool);
+// неверное значение — ошибка с именем переменной, остальные поля при этом заполняются.
 func InitConfig[E any](config *E) error {
 	err := viper.Unmarshal(config)
 
@@ -62,23 +68,36 @@ func InitConfig[E any](config *E) error {
 	}
 
 	envKeys := structHelper.GetFieldsAsMapStructureTags(config)
+	configType := reflect.TypeOf(config).Elem()
 	osEnvMap := make(map[string]any, len(envKeys))
 
+	var errs []error
+
 	for _, key := range envKeys {
-		if value, exists := os.LookupEnv(key); exists {
-			key = strings.ToLower(key)
-			osEnvMap[key] = value
+		value, exists := os.LookupEnv(key)
+		if !exists {
+			continue
 		}
+
+		typed, vErr := envValue(configType, key, value)
+		if vErr != nil {
+			errs = append(errs, vErr)
+
+			continue
+		}
+
+		osEnvMap[strings.ToLower(key)] = typed
 	}
 
-	//	// Convert the map to JSON
-	jsonData, _ := json.Marshal(osEnvMap)
-	// Convert the JSON to a struct
-	uErr := json.Unmarshal(jsonData, config)
+	jsonData, mErr := json.Marshal(osEnvMap)
+	if mErr != nil {
+		return errors.Join(append(errs, fmt.Errorf("config: marshal env: %w", mErr))...)
+	}
 
-	if uErr != nil {
+	uErr := json.Unmarshal(jsonData, config)
+	if len(errs) == 0 {
 		return uErr
 	}
 
-	return nil
+	return errors.Join(append(errs, uErr)...)
 }

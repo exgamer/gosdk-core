@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.27]
+
+Исправлен `config.InitConfig`: числовые и булевы поля конфига из переменных окружения процесса
+(Docker, k8s, `docker run -e`). Сигнатура не изменилась.
+
+### Исправлено
+
+- Значение из окружения процесса приводится к типу поля структуры: `int*`, `uint*`, `float*`, `bool`
+  и указатели на них. Раньше оно уходило строкой и падало: `REDIS_DB=15` →
+  `json: cannot unmarshal string into Go struct field ... of type int`.
+- Правила разбора - как у viper для `.env`: пустое значение - `0`/`false`, целые с `0x`/`0o`/`0b`,
+  `bool` - `1/0`, `t/f`, `true/false` в любом регистре из `strconv.ParseBool`.
+
+### ⚠️ Изменения поведения
+
+- Неверное значение (`REDIS_DB=abc`, `int8` вне диапазона, `NaN`/`Inf` во `float`) - ошибка с именем
+  переменной: `config: env REDIS_DB: invalid int value: strconv.ParseInt: parsing "abc": invalid syntax`
+  (раньше - ошибка json без имени переменной). Остальные поля, как и раньше, заполняются.
+- Без изменений: строки (как есть, без обрезки пробелов), приоритет окружения над `.env`, поиск поля
+  по тегам `mapstructure` → `json`, поля без `json`-тега или с `json:"-"`, опция `json:",string"`,
+  типы со своим `UnmarshalJSON`/`UnmarshalText`. `time.Duration`, срезы и вложенные структуры
+  из окружения процесса по-прежнему получают строку (для `Duration` - прежняя ошибка json).
+- SDK-кернелы (`gosdk-http-core`, `gosdk-redis-core`, `gosdk-postgres-core`, `gosdk-rabbit-core`,
+  `gosdk-sentry-core`) ошибку `InitConfig` возвращают: сервисы, которые падали на числовом env
+  при старте, теперь стартуют.
+
 ## [Unreleased]
 
 Переработан DI-контейнер (`pkg/di`). Подробности: [pkg/di/README.MD](pkg/di/README.MD).
