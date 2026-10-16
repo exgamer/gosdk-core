@@ -123,7 +123,7 @@ func IsTraceLevel() bool {
 }
 
 func Info(ctx context.Context, msg string)    { printLog(ctx, LevelInfo, msg) }
-func Error(ctx context.Context, msg string)   { printLog(ctx, LevelDebug, msg) }
+func Error(ctx context.Context, msg string)   { printLog(ctx, LevelError, msg) }
 func Warning(ctx context.Context, msg string) { printLog(ctx, LevelWarn, msg) }
 func Fatal(ctx context.Context, msg string)   { printLog(ctx, LevelFatal, msg) }
 func Trace(ctx context.Context, msg string)   { printLog(ctx, LevelTrace, msg) }

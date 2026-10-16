@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.0.28]
+
+Исправлен уровень `logger.Error`. Сигнатура не изменилась.
+
+### Исправлено
+
+- `logger.Error` пишет на уровне `ERROR`. Раньше сообщение уходило на уровне `DEBUG`: при
+  `LOG_LEVEL=info` и выше ошибки не попадали в лог, при `debug`/`trace` были помечены `[DEBUG]`.
+
+### ⚠️ Изменения поведения
+
+- Сообщения `logger.Error` видны при `LOG_LEVEL` `trace`, `debug`, `info`, `warn`, `error` и помечены
+  `[ERROR]` (раньше - только при `trace`/`debug` и с меткой `[DEBUG]`). При `LOG_LEVEL=fatal` скрыты, как и раньше.
+- Без изменений: `Trace`, `Debug`, `Info`, `Warning`, `Fatal`, `Dump`, формат строки лога.
+- SDK-пакеты, которые вызывают `logger.Error`, на рабочих уровнях (`info` и выше) начнут писать в лог:
+  - `gosdk-http-core`: `logger.FormattedError` / `FormattedErrorWithHttpInfo` и через них
+    `middleware` логирования запросов - строка на каждый запрос, завершившийся исключением в контексте
+    (`exception`, в том числе 4xx), ошибками gin или статусом 5xx (раньше при `info` и выше такие запросы
+    в лог не попадали вовсе: строка `[INFO]` для них не пишется);
+  - `gosdk-rabbit-core`: остановка consumer в `RabbitKernel`, ошибка регистрации обработчика и подписки
+    на очередь в `rabbitmq` consumer;
+  - `gosdk-kafka-core`: остановка consumer в `KafkaKernel`, ошибка регистрации обработчика и создания
+    подписчика в `kafkamq` consumer.
+
 ## [1.0.27]
 
 Исправлен `config.InitConfig`: числовые и булевы поля конфига из переменных окружения процесса
@@ -26,7 +50,7 @@
   `gosdk-sentry-core`) ошибку `InitConfig` возвращают: сервисы, которые падали на числовом env
   при старте, теперь стартуют.
 
-## [Unreleased]
+## [1.0.26]
 
 Переработан DI-контейнер (`pkg/di`). Подробности: [pkg/di/README.MD](pkg/di/README.MD).
 
