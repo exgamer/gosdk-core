@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"github.com/exgamer/gosdk-core/pkg/config"
-	"github.com/exgamer/gosdk-core/pkg/constants"
+	coreContext "github.com/exgamer/gosdk-core/pkg/context"
 	"github.com/exgamer/gosdk-core/pkg/di"
 	"github.com/exgamer/gosdk-core/pkg/logger"
 	"log"
@@ -215,7 +215,7 @@ func (app *App) initApp() error {
 
 		appInfo := config.GetInstanceAppInfo(baseConfig)
 
-		app.ctx = context.WithValue(app.ctx, constants.AppInfoKey, appInfo)
+		app.ctx = coreContext.WithAppInfo(app.ctx, appInfo)
 		di.Register(app.Container, app.BaseConfig)
 	}
 

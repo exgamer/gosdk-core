@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	context2 "github.com/exgamer/gosdk-core/pkg/context"
 	stdlog "log"
 	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	context2 "github.com/exgamer/gosdk-core/pkg/context"
 )
 
 var (
@@ -68,6 +69,7 @@ func printLog(ctx context.Context, level Level, msg string) {
 		return
 	}
 
+	msg = escapeControl(msg)
 	appInfo := context2.GetAppInfoFromContext(ctx)
 	var b strings.Builder
 	b.Grow(64 + len(msg))
@@ -78,7 +80,7 @@ func printLog(ctx context.Context, level Level, msg string) {
 	if appInfo == nil {
 		b.WriteString("[" + level.String() + "]")
 	} else {
-		b.WriteString("[" + level.String() + "," + appInfo.ServiceName + "]")
+		b.WriteString("[" + level.String() + "," + escapeControl(appInfo.ServiceName) + "]")
 	}
 
 	b.WriteString(" ")
@@ -149,7 +151,7 @@ func Dump(ctx context.Context, v ...any) {
 }
 
 func dumpValue(v any) string {
-	b, err := json.MarshalIndent(v, "", "  ")
+	b, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Sprintf("%#v", v)
 	}
